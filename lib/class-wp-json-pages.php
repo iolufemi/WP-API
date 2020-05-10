@@ -39,16 +39,16 @@ class WP_JSON_Pages extends WP_JSON_CustomPostType {
 	 * @param array $routes Existing routes
 	 * @return array Modified routes
 	 */
-	public function registerRoutes( $routes ) {
-		$routes = parent::registerRoutes( $routes );
-		$routes = parent::registerRevisionRoutes( $routes );
-		$routes = parent::registerCommentRoutes( $routes );
+	public function register_routes( $routes ) {
+		$routes = parent::register_routes( $routes );
+		$routes = parent::register_revision_routes( $routes );
+		$routes = parent::register_comment_routes( $routes );
 
 		// Add post-by-path routes
 		$routes[ $this->base . '/(?P<path>.+)'] = array(
-			array( array( $this, 'getPostByPath' ),    WP_JSON_Server::READABLE ),
-			array( array( $this, 'editPostByPath' ),   WP_JSON_Server::EDITABLE | WP_JSON_Server::ACCEPT_JSON ),
-			array( array( $this, 'deletePostByPath' ), WP_JSON_Server::DELETABLE ),
+			array( array( $this, 'get_post_by_path' ),    WP_JSON_Server::READABLE ),
+			array( array( $this, 'edit_post_by_path' ),   WP_JSON_Server::EDITABLE | WP_JSON_Server::ACCEPT_JSON ),
+			array( array( $this, 'delete_post_by_path' ), WP_JSON_Server::DELETABLE ),
 		);
 
 		return $routes;
@@ -58,49 +58,62 @@ class WP_JSON_Pages extends WP_JSON_CustomPostType {
 	 * Retrieve a page by path name
 	 *
 	 * @param string $path
+	 * @param string $context
+	 *
+	 * @return array|WP_Error
 	 */
-	public function getPostByPath( $path, $context = 'view' ) {
+	public function get_post_by_path( $path, $context = 'view' ) {
 		$post = get_page_by_path( $path, ARRAY_A );
 
-		if ( empty( $post ) )
+		if ( empty( $post ) ) {
 			return new WP_Error( 'json_post_invalid_id', __( 'Invalid post ID.' ), array( 'status' => 404 ) );
+		}
 
-		return $this->getPost( $post['ID'], $context );
+		return $this->get_post( $post['ID'], $context );
 	}
 
 	/**
 	 * Edit a page by path name
 	 *
-	 * @param string $path
+	 * @param $path
+	 * @param $data
+	 * @param array $_headers
+	 *
+	 * @return true|WP_Error
 	 */
-	public function editPostByPath( $path, $data, $_headers = array() ) {
+	public function edit_post_by_path( $path, $data, $_headers = array() ) {
 		$post = get_page_by_path( $path, ARRAY_A );
 
-		if ( empty( $post ) )
+		if ( empty( $post ) ) {
 			return new WP_Error( 'json_post_invalid_id', __( 'Invalid post ID.' ), array( 'status' => 404 ) );
+		}
 
-		return $this->editPost( $post['ID'], $data, $_headers );
+		return $this->edit_post( $post['ID'], $data, $_headers );
 	}
 
 	/**
 	 * Delete a page by path name
 	 *
-	 * @param string $path
+	 * @param $path
+	 * @param bool $force
+	 *
+	 * @return true|WP_Error
 	 */
-	public function deletePostByPath( $path, $force = false ) {
+	public function delete_post_by_path( $path, $force = false ) {
 		$post = get_page_by_path( $path, ARRAY_A );
 
-		if ( empty( $post ) )
+		if ( empty( $post ) ) {
 			return new WP_Error( 'json_post_invalid_id', __( 'Invalid post ID.' ), array( 'status' => 404 ) );
+		}
 
-		return $this->deletePost( $post['ID'], $force );
+		return $this->delete_post( $post['ID'], $force );
 	}
 
 	/**
 	 * Prepare post data
 	 *
 	 * @param array $post The unprepared post data
-	 * @param array $fields The subset of post type fields to return
+	 * @param string $context The context for the prepared post. (view|view-revision|edit|embed|single-parent)
 	 * @return array The prepared post data
 	 */
 	protected function prepare_post( $post, $context = 'view' ) {
@@ -109,8 +122,9 @@ class WP_JSON_Pages extends WP_JSON_CustomPostType {
 		// Override entity meta keys with the correct links
 		$_post['meta']['links']['self'] = json_url( $this->base . '/' . get_page_uri( $post['ID'] ) );
 
-		if ( ! empty( $post['post_parent'] ) )
+		if ( ! empty( $post['post_parent'] ) ) {
 			$_post['meta']['links']['up'] = json_url( $this->base . '/' . get_page_uri( (int) $post['post_parent'] ) );
+		}
 
 		return apply_filters( 'json_prepare_page', $_post, $post, $context );
 	}
